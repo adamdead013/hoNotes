@@ -1,31 +1,21 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
-using System.Diagnostics.SymbolStore;
-using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using MyNotes;
 
 namespace MyNotes
 {
     public partial class mainForm : Form
     {
         #region Переменные
-        string path = @"Unnamed"; //переменная пути файла
-        string tag = ".txt"; //расширение сохраняемого файла
-        Random random = new(); //переменная? для имени файла, если файл Unnamed.txt уже существует в директории
 
+        private readonly string path = @"Unnamed"; //переменная пути файла
+        private readonly string tag = ".txt"; //расширение сохраняемого файла
+        private readonly Random random = new(); //переменная? для имени файла, если файл Unnamed.txt уже существует в директории
 
         #endregion
 
-
         #region Запуск Form
+
         public mainForm()
         {
             InitializeComponent();
@@ -33,10 +23,12 @@ namespace MyNotes
 
         private void mainForm_Load(object sender, EventArgs e)
         {
-            textBoxNote.Hide();
             fileDirectory.Hide();
+
+            textBoxNote.Hide();
             textBoxNote.ScrollBars = ScrollBars.Both;
         }
+
         #endregion
 
         /// <summary>
@@ -46,19 +38,33 @@ namespace MyNotes
         /// <param name="e"></param>
         private void buttonCreate_Click(object sender, EventArgs e)
         {
-            textBoxNote.Text = "";
-            if (File.Exists(path + tag)) //если файл Unnamed.txt существует
-            {
-                File.Create(path + random.Next(0, 10).ToString() + tag); //создаём файл с рандомным числом в названии
-            }
-            else //иначе
-            {
+            const int MAX_ATTEMPTS = 10;
 
-                File.Create(path + tag); //создаём файл Unnamed.txt
+            textBoxNote.Text = "";
+
+            string fileName = path + tag;
+            int maxValue = 10;      // --- 
+            int currentAttempt = 0; // --- we want to limit number of attempts trying to find a proper file name
+
+            while (File.Exists(fileName))
+            {
+                fileName = $"{path}{random.Next(0, maxValue)}{tag}";
+                maxValue += 10;
+
+                if (currentAttempt++ > MAX_ATTEMPTS)
+                {
+                    MessageBox.Show($"Cannot generate a new file name after {MAX_ATTEMPTS} attempts");
+                    return;
+                }
             }
+
+            FileStream fs = File.Create(fileName); //  создаём файл Unnamed.txt
+            fs.Dispose();                           // --- release file descriptor, otherwise it could cause to resource leaks.
+
             textBoxNote.Show(); //показываем текстбокс
-            fileDirectory.Text = path + tag; //указываем в текст лейбла путь до файла
-            fileDirectory.Show();//показываем лейбл
+
+            fileDirectory.Text = fileName; //указываем в текст лейбла путь до файла
+            fileDirectory.Show(); //показываем лейбл
         }
 
         /// <summary>
@@ -68,31 +74,31 @@ namespace MyNotes
         /// <param name="e"></param>
         private void buttonSave_Click(object sender, EventArgs e)
         {
-            if (File.Exists(fileDirectory.Text)) //если файл сущетсвует
-            {
-                File.AppendAllText(fileDirectory.Text, textBoxNote.Text); //записываем в него текст
-            }
-            else //если нет 
+            if (!File.Exists(fileDirectory.Text))
             {
                 MessageBox.Show("Файл не существует"); //показываем уведомление
+                return;
             }
+
+            File.WriteAllText(fileDirectory.Text, textBoxNote.Text); //записываем в него текст
         }
+
         /// <summary>
         /// Открытие файла
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void fileOpen_Click(object sender, EventArgs e) 
+        private void fileOpen_Click(object sender, EventArgs e)
         {
-            fileopenWindow.ShowDialog(); //открываем окно в котором пользователь выбирает файл
+            if (fileopenWindow.ShowDialog() != DialogResult.OK) //открываем окно в котором пользователь выбирает файл
+                return;
+
             fileDirectory.Show(); //показываем лейбл в котором хранится текст пути до файла
             textBoxNote.Show(); //показываем текстбокс
+
             textBoxNote.Text = File.ReadAllText(fileopenWindow.FileName); //записываем текст из файла в текстбокс
             fileDirectory.Text = fileopenWindow.FileName; //передаем путь до файла в лейбл
-
         }
-
-
     }
 }
 
